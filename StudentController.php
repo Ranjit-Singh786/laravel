@@ -11,10 +11,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Carbon\Carbon;
 use Validator;
+use App\Traits\Reply;
 use DB;
 
 class StudentController extends Controller
 {
+    use Reply;
 
 //create data api
     public function create(Request $request)
@@ -36,10 +38,11 @@ class StudentController extends Controller
       $data= User::create($request->all());
             //return response()->json($data);
             if($data){
-                $token = $data->createToken('api_token')->accessToken;
-                return response()->json(['token'=>"data  insered successfully",'status'=>200]);
+                // $token = $data->createToken('api_token')->accessToken;
+
+               return  $this->success($data);
             }else{
-                return response()->json(['data' => "data  failed",'status'=>201]);
+               return $this->failed($data);
             }
 
 
@@ -47,29 +50,46 @@ class StudentController extends Controller
 
     }
     //user login api
+
     public function loginUser(Request $request){
         $validator = Validator::make($request->all(), [
-            'email' => 'required|string|email|max:255',
-            'password' => 'required|string|min:6',
+            'email' => 'required|email|exists:users',
+            'password' => 'required|min:6'
         ]);
+
         if ($validator->fails())
         {
             return response(['errors'=>$validator->errors()->all()], 422);
         }
-        $user = User::where('email', $request->email)->first();
-        if ($user) {
-            if (Hash::check($request->password, $user->password)) {
-                $token = $user->createToken('Laravel Password Grant Client')->accessToken;
-                $response = ["msg"=>"successfully login",'token' => $token];
-                return response($response, 200);
-            } else {
-                $response = ["message" => "Password mismatch"];
-                return response($response, 422);
-            }
-        } else {
-            $response = ["message" =>'User does not exist'];
-            return response($response, 422);
+
+        $user = User::firstWhere('email', $request->email);
+        // return $user;
+
+       $token =  $user->createToken('apitoken')->accessToken;
+    //    return $token;
+    // return $request->password;
+// return $request->email;
+        $credials = [
+            'email' =>  $request->email,
+            'password' => $request->password,
+        ];
+
+
+        //return $validator
+        if(!auth()->attempt($credials)){
+            return  $this->failed('login failed');
         }
+             $user = Auth::user();
+             $id = $user->id;
+             $user1 = User::find($id);
+                    $user1->tokens()->limit(PHP_INT_MAX)->offset(1)->get()->map(function ($token1) {
+                    $token1->delete();
+                });
+            //  Auth::user()->tokens->each(function($token, $key) {
+            //     $token->delete();
+            // });
+
+             return  $this->success('successfully',$user,$token);
     }
     //get data api
     public function getData(Request $request)
@@ -83,19 +103,19 @@ public function updateData(Request $request,$id)
     {
         $validated =  Validator::make($request->all() , [
             'name' => 'required|unique:students|max:255',
-            'email' => 'required|unique:students',
-            'country' => 'required',
+            'email' => 'required|unique:students'
+
         ]);
         if($validated->fails())
         {
             return $validated->errors()->first();
         }
-        $user=Student::find($id);
-         if($user){
-            $user->update($request->all());
-            return response()->json(['data' => "data successfully updated",'status'=>200]);
+        $data=User::find($id);
+         if($data){
+            $data->update($request->all());
+            return  $this->success($data);
         }else{
-            return response()->json(['data' =>"data updated failed",'status'=>201]);
+            return  $this->failed('failed');
         }
 
 
@@ -103,11 +123,12 @@ public function updateData(Request $request,$id)
 //delete data api
     public function destroy($id)
     {
-        if(Student::find($id)){
-             Student::destroy($id);
-            return response()->json(['data' => "user successfully deleted",'status'=>200]);
+        $data = User::find($id);
+        if($data){
+            $data =  User::destroy($id);
+            return  $this->success($data,'deleted successfully');
         }else{
-            return response()->json(['data' =>"user deleted failed",'status'=>201]);
+            return  $this->failed('failed to delete data');
         }
     }
 
@@ -123,17 +144,18 @@ public function updateData(Request $request,$id)
             return $validator->errors()->first();
         }
 
-        $user = User::firstWhere('email', $request->email)->first();
+        $user = User::firstWhere('email', $request->email);
         $name = $user->name;
         //return $name;die;
 
         $token = rand(111111,999999);
         $CurrTime = Carbon::now();
-        $otp_expires = $CurrTime->subMinute(2);
+        $otp_expires = $CurrTime->subMinute(1);
         //return $emailotp;die;
         $mail= Otp::firstWhere('email', $email);
         if($mail!=""){
-            return response()->json(['data' => "otp already generated",'status'=>201]);
+            Otp::where('created_at', '<=',$otp_expires)->delete();
+            return  $this->failed('otp already generated');
         }
 
         $data = Otp::where('created_at', '<=',$otp_expires)->delete();
@@ -216,10 +238,10 @@ public function updateData(Request $request,$id)
 
     $user = Otp::where('email', $email)->first();
     if($user->otp != $otp){
-        return response()->json(['data' => "otp does not matched",'status'=>201]);
+        return  $this->failed('Otp does not match');
     } else{
 
-        return response()->json(['data' => "Otp verified",'status'=>200]);
+        return  $this->success('otp verified');
     }
 
 }
@@ -250,19 +272,29 @@ public function changePassword(Request $request){
 
     if($UpdateData){
         $OtpModel->delete();
-        return response()->json(['data' => "password successfully changed",'status'=>200]);
+        return  $this->success('update data successfully');
 
     }else{
-        return response()->json(['data' => "something wrong",'status'=>201]);
+        return  $this->failed('failed to update');
+    }
+}
+//logout api
+public function UserLogOut(Request $request)
+    {
+        if (Auth::check()) {
+            Auth::user()->token()->delete();
+            return  $this->success('user logged out successfully');
+          }else{
+            return  $this->failed('user logged out failed');
+          }
+
+
     }
 
+    public function UserHome(Request $request)
+    {
 
-
-
-
-
-
-
-
-}
+         Auth::user();
+         return  $this->success('welcome to homepage');
+    }
 }
