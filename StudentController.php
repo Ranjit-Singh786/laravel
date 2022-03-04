@@ -18,12 +18,12 @@ class StudentController extends Controller
 {
     use Reply;
 
-//create data api
+    //create data api
     public function create(Request $request)
     {
         $validated =  Validator::make($request->all() , [
             'name' => 'required|unique:students|max:255',
-            'email' => 'required|unique:students',
+            'email' => 'email|required|unique:students',
             'password' => 'min:6|required_with:password_confirmation|same:password_confirmation',
             'password_confirmation' => 'min:6'
         ]);
@@ -68,7 +68,7 @@ class StudentController extends Controller
        $token =  $user->createToken('apitoken')->accessToken;
     //    return $token;
     // return $request->password;
-// return $request->email;
+    // return $request->email;
         $credials = [
             'email' =>  $request->email,
             'password' => $request->password,
@@ -94,33 +94,43 @@ class StudentController extends Controller
     //get data api
     public function getData(Request $request)
     {
-         return  Student::all();
+         $fetch =   User::all();
+         if($fetch!=""){
+            return  $this->success('successfully',$fetch);
+         }else{
+            return  $this->failed('Not get data');
+         }
 
-}
+    }
 
-//update data api
-public function updateData(Request $request,$id)
+    // update data api
+    public function updateData(Request $request,$id)
     {
-        $validated =  Validator::make($request->all() , [
-            'name' => 'required|unique:students|max:255',
-            'email' => 'required|unique:students'
+        // return "hijhihjj";
+
+
+        $validator =  Validator::make($request->all() , [
+            'name' => 'required|max:255',
+            'email' => 'required|email|unique:users,email,' . $id,
 
         ]);
-        if($validated->fails())
+        if($validator->fails())
         {
-            return $validated->errors()->first();
+            return response(['errors'=>$validator->errors()->all()], 422);
         }
-        $data=User::find($id);
-         if($data){
-            $data->update($request->all());
-            return  $this->success($data);
+        $Userdata = User::find($id);
+        //return $data;
+
+         if($Userdata){
+             $Userdata->update($request->all());
+            return  $this->success($Userdata);
         }else{
             return  $this->failed('failed');
         }
 
 
     }
-//delete data api
+    //delete data api
     public function destroy($id)
     {
         $data = User::find($id);
@@ -244,13 +254,13 @@ public function updateData(Request $request,$id)
         return  $this->success('otp verified');
     }
 
-}
+    }
 
-public function changePassword(Request $request){
+    public function changePassword(Request $request){
     $validator = Validator::make($request->all(), [
         'email' => 'required|email|exists:otps',
         'otp'=>  'required|exists:otps',
-        'password' => 'min:6|required_with:password_confirmation|same:password_confirmation',
+        'password' => 'min:6|required|same:password_confirmation',
         'password_confirmation' => 'min:6'
 
     ]);
@@ -277,9 +287,9 @@ public function changePassword(Request $request){
     }else{
         return  $this->failed('failed to update');
     }
-}
-//logout api
-public function UserLogOut(Request $request)
+    }
+    //logout api
+    public function UserLogOut(Request $request)
     {
         if (Auth::check()) {
             Auth::user()->token()->delete();
@@ -297,4 +307,29 @@ public function UserLogOut(Request $request)
          Auth::user();
          return  $this->success('welcome to homepage');
     }
+    public function changepass(Request $request){
+             $validator = Validator::make($request->all(), [
+            'email' => 'email|required|exists:users',
+            'oldpassword'=>  'required|min:6',
+            'password' => 'min:6|required|same:password_confirmation',
+            'password_confirmation' => 'min:6'
+        ]);
+        if($validator->fails())
+        {
+            return $validator->errors()->first();
+        }
+         $Oldpassword = Hash::check($request->oldpassword, Auth::user()->password);
+        if (!$Oldpassword){
+             return "Old password does not matched";
+         }
+         $same =  Hash::check($request->password, Auth::user()->password);
+         if($same){
+            return "old password and new password should not be mathced";
+         }
+         $user = Auth::user();
+         $user->password = Hash::make($request->password);
+         $user->update();
+         return  $this->success('Password changed successfully');
+
+         }
 }
