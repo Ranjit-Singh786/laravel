@@ -2,8 +2,8 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\StudentController;
-use App\Http\Controllers\ForgotPasswordController;
+use App\Http\Controllers\AuthController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -18,30 +18,27 @@ use App\Http\Controllers\ForgotPasswordController;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-
-
-Route::post('/createData', [StudentController::class, 'create']);
-Route::get('/getData', [StudentController::class, 'getData']);
-Route::put('/update_data/{id}',[StudentController::class,'updateData']);
-Route::delete('/delete/{id}',[StudentController::class,'destroy']);
-
-
-Route::post('/login', [StudentController::class, 'loginUser']);
-Route::post('/forgot-password', [StudentController::class, 'forgotPassword']);
-Route::post('/verify-otp', [StudentController::class, 'verifyotp']);
-Route::post('/change-password', [StudentController::class, 'changePassword']);
+Route::post('/createuser', [AuthController::class, 'create']);
+Route::post('/loginUser', [AuthController::class, 'loginUser']);
 
 
 
 Route::group(['middleware' => ['auth:api']], function () {
-    Route::get('home',[StudentController::class,'UserHome']);
-    Route::delete('logout',[StudentController::class,'UserLogOut']);
+    Route::get('/userHomepage', [AuthController::class, 'UserHomeGetAllPosts']);
+    Route::post('/createpost',[AuthController::class,'createPost']);
+    Route::get('/getpost/{id}',[AuthController::class,'showAllPostsOnlyOneuser']);
+    Route::put('/update/{id}',[AuthController::class,'updateData']);
+    Route::delete('/destroy/{id}',[AuthController::class,'destroy']);
+    Route::delete('/logout',[AuthController::class,'UserLogOut']);
+    Route::get('/countLike/{id}',[AuthController::class,'countLikeWithNames']);
+    Route::post('/createComment/{id}',[AuthController::class,'createComment']);
+    Route::delete('/deleteComment/{id}',[AuthController::class,'deleteComment']);
+    Route::post('/likeCount/{id}',[AuthController::class,'likeCount']);
+    Route::get('/showComment/{id}',[AuthController::class,'showComment']);
+
+
+
+
+
     });
-
-
-
-
-
-
-
 
